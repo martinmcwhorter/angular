@@ -8,7 +8,6 @@ import {
   RegExpWrapper
 } from 'angular2/src/facade/lang';
 import {BaseException} from 'angular2/src/facade/exceptions';
-import {MapWrapper, StringMapWrapper, ListWrapper} from 'angular2/src/facade/collection';
 import * as cpl from './directive_metadata';
 import * as md from 'angular2/src/core/metadata/directives';
 import {DirectiveResolver} from 'angular2/src/core/linker/directive_resolver';
@@ -20,6 +19,7 @@ import {reflector} from 'angular2/src/core/reflection/reflection';
 import {Injectable, Inject, Optional} from 'angular2/src/core/di';
 import {PLATFORM_DIRECTIVES} from 'angular2/src/core/platform_directives_and_pipes';
 import {MODULE_SUFFIX} from './util';
+import {getUrlScheme} from 'angular2/src/compiler/url_resolver';
 
 @Injectable()
 export class RuntimeMetadataResolver {
@@ -32,12 +32,13 @@ export class RuntimeMetadataResolver {
     var meta = this._cache.get(directiveType);
     if (isBlank(meta)) {
       var dirMeta = this._directiveResolver.resolve(directiveType);
-      var moduleUrl = calcModuleUrl(directiveType, dirMeta);
+      var moduleUrl = null;
       var templateMeta = null;
       var changeDetectionStrategy = null;
 
       if (dirMeta instanceof md.ComponentMetadata) {
         var cmpMeta = <md.ComponentMetadata>dirMeta;
+        moduleUrl = calcModuleUrl(directiveType, cmpMeta);
         var viewMeta = this._viewResolver.resolve(directiveType);
         templateMeta = new cpl.CompileTemplateMetadata({
           encapsulation: viewMeta.encapsulation,
@@ -77,14 +78,8 @@ export class RuntimeMetadataResolver {
       }
     }
 
-    return removeDuplicates(directives).map(type => this.getMetadata(type));
+    return directives.map(type => this.getMetadata(type));
   }
-}
-
-function removeDuplicates(items: any[]): any[] {
-  let m = new Map<any, any>();
-  items.forEach(i => m.set(i, null));
-  return MapWrapper.keys(m);
 }
 
 function flattenDirectives(view: ViewMetadata, platformDirectives: any[]): Type[] {
@@ -113,9 +108,12 @@ function isValidDirective(value: Type): boolean {
   return isPresent(value) && (value instanceof Type);
 }
 
-function calcModuleUrl(type: Type, dirMeta: md.DirectiveMetadata): string {
-  if (isPresent(dirMeta.moduleId)) {
-    return `package:${dirMeta.moduleId}${MODULE_SUFFIX}`;
+function calcModuleUrl(type: Type, cmpMetadata: md.ComponentMetadata): string {
+  var moduleId = cmpMetadata.moduleId;
+  if (isPresent(moduleId)) {
+    var scheme = getUrlScheme(moduleId);
+    return isPresent(scheme) && scheme.length > 0 ? moduleId :
+                                                    `package:${moduleId}${MODULE_SUFFIX}`;
   } else {
     return reflector.importUri(type);
   }

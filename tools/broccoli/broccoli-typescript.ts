@@ -44,9 +44,10 @@ class DiffingTSCompiler implements DiffingBroccoliPlugin {
       this.rootFilePaths = [];
     }
 
-    // in tsc 1.7.x this api was renamed to parseJsonConfigFileContent
     // the conversion is a bit awkward, see https://github.com/Microsoft/TypeScript/issues/5276
-    this.tsOpts = ts.parseConfigFile({compilerOptions: options, files: []}, null, null).options;
+    // in 1.8 use convertCompilerOptionsFromJson
+    this.tsOpts =
+        ts.parseJsonConfigFileContent({compilerOptions: options, files: []}, null, null).options;
 
     // TODO: the above turns rootDir set to './' into an empty string - looks like a tsc bug
     //       check back when we upgrade to 1.7.x
@@ -103,7 +104,7 @@ class DiffingTSCompiler implements DiffingBroccoliPlugin {
           output.outputFiles.forEach(o => {
             let destDirPath = path.dirname(o.name);
             fse.mkdirsSync(destDirPath);
-            fs.writeFileSync(o.name, o.text, FS_OPTS);
+            fs.writeFileSync(o.name, this.fixSourceMapSources(o.text), FS_OPTS);
           });
         }
       });
@@ -145,9 +146,9 @@ class DiffingTSCompiler implements DiffingBroccoliPlugin {
 
   private doFullBuild() {
     let program = this.tsService.getProgram();
-    let emitResult = program.emit(undefined, function(absoluteFilePath, fileContent) {
+    let emitResult = program.emit(undefined, (absoluteFilePath, fileContent) => {
       fse.mkdirsSync(path.dirname(absoluteFilePath));
-      fs.writeFileSync(absoluteFilePath, fileContent, FS_OPTS);
+      fs.writeFileSync(absoluteFilePath, this.fixSourceMapSources(fileContent), FS_OPTS);
     });
 
     if (emitResult.emitSkipped) {
@@ -176,6 +177,33 @@ class DiffingTSCompiler implements DiffingBroccoliPlugin {
     }
   }
 
+  /**
+   * There is a bug in TypeScript 1.6, where the sourceRoot and inlineSourceMap properties
+   * are exclusive. This means that the sources property always contains relative paths
+   * (e.g, ../../../../angular2/src/di/injector.ts).
+   *
+   * Here, we normalize the sources property and remove the ../../../
+   *
+   * This issue is fixed in https://github.com/Microsoft/TypeScript/pull/5620.
+   * Once we switch to TypeScript 1.8, we can remove this method.
+   */
+  private fixSourceMapSources(content: string): string {
+    try {
+      const marker = "//# sourceMappingURL=data:application/json;base64,";
+      const index = content.indexOf(marker);
+      if (index == -1) return content;
+
+      const base = content.substring(0, index + marker.length);
+      const sourceMapBit =
+          new Buffer(content.substring(index + marker.length), 'base64').toString("utf8");
+      const sourceMaps = JSON.parse(sourceMapBit);
+      const source = sourceMaps.sources[0];
+      sourceMaps.sources = [source.substring(source.lastIndexOf("../") + 3)];
+      return `${base}${new Buffer(JSON.stringify(sourceMaps)).toString('base64')}`;
+    } catch (e) {
+      return content;
+    }
+  }
 
   private removeOutputFor(tsFilePath: string) {
     let absoluteJsFilePath = path.join(this.cachePath, tsFilePath.replace(/\.ts$/, '.js'));
@@ -184,7 +212,10 @@ class DiffingTSCompiler implements DiffingBroccoliPlugin {
 
     if (fs.existsSync(absoluteJsFilePath)) {
       fs.unlinkSync(absoluteJsFilePath);
-      fs.unlinkSync(absoluteMapFilePath);
+      if (fs.existsSync(absoluteMapFilePath)) {
+        // source map could be inline or not generated
+        fs.unlinkSync(absoluteMapFilePath);
+      }
       fs.unlinkSync(absoluteDtsFilePath);
     }
   }
@@ -236,7 +267,7 @@ class CustomLanguageServiceHost implements ts.LanguageServiceHost {
     } else if (this.compilerOptions.moduleResolution === ts.ModuleResolutionKind.NodeJs &&
                tsFilePath.match(/^node_modules/)) {
       absoluteTsFilePath = path.resolve(tsFilePath);
-    } else if (tsFilePath.match(/^@reactivex/)) {
+    } else if (tsFilePath.match(/^rxjs/)) {
       absoluteTsFilePath = path.resolve('node_modules', tsFilePath);
     } else {
       absoluteTsFilePath = path.join(this.treeInputPath, tsFilePath);

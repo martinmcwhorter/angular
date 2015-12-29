@@ -9,8 +9,6 @@ const CUSTOM_ANNOTATIONS_PARAM = 'custom_annotations';
 const ENTRY_POINT_PARAM = 'entry_points';
 const FORMAT_CODE_PARAM = 'format_code';
 const REFLECT_PROPERTIES_AS_ATTRIBUTES = 'reflect_properties_as_attributes';
-// TODO(kegluenq): Remove this after 30 Nov (i/5108).
-const REFLECT_PROPERTIES_AS_ATTRIBUTES_OLD = 'reflectPropertiesAsAttributes';
 const PLATFORM_DIRECTIVES = 'platform_directives';
 const INIT_REFLECTOR_PARAM = 'init_reflector';
 const INLINE_VIEWS_PARAM = 'inline_views';
@@ -40,6 +38,10 @@ class TransformerOptions {
   /// If this is `true`, the change detection code will echo set property values
   /// as attributes on DOM elements, which may aid in application debugging.
   final bool reflectPropertiesAsAttributes;
+
+  /// Whether to generate debug information in change detectors.
+  /// This improves error messages when exception are triggered in templates.
+  final bool genChangeDetectionDebugInfo;
 
   /// A set of directives that will be automatically passed-in to the template compiler
   /// Format of an item in the list: angular2/lib/src/common/directives.dart#CORE_DIRECTIVES
@@ -71,7 +73,8 @@ class TransformerOptions {
       this.mirrorMode,
       this.initReflector,
       this.annotationMatcher,
-      {this.reflectPropertiesAsAttributes,
+      {this.genChangeDetectionDebugInfo,
+      this.reflectPropertiesAsAttributes,
       this.platformDirectives,
       this.inlineViews,
       this.lazyTransformers,
@@ -83,7 +86,8 @@ class TransformerOptions {
       bool initReflector: true,
       List<ClassDescriptor> customAnnotationDescriptors: const [],
       bool inlineViews: false,
-      bool reflectPropertiesAsAttributes: true,
+      bool genChangeDetectionDebugInfo: false,
+      bool reflectPropertiesAsAttributes: false,
       List<String> platformDirectives,
       bool lazyTransformers: false,
       bool formatCode: false}) {
@@ -94,6 +98,7 @@ class TransformerOptions {
         : null;
     return new TransformerOptions._internal(entryPoints, entryPointGlobs,
         modeName, mirrorMode, initReflector, annotationMatcher,
+        genChangeDetectionDebugInfo: genChangeDetectionDebugInfo,
         reflectPropertiesAsAttributes: reflectPropertiesAsAttributes,
         platformDirectives: platformDirectives,
         inlineViews: inlineViews,

@@ -1,10 +1,9 @@
 import {provide, Provider, Component, View} from 'angular2/core';
-export {Provider} from 'angular2/core';
 import {Type, isBlank} from 'angular2/src/facade/lang';
 import {BaseException} from 'angular2/src/facade/exceptions';
 
 import {
-  RootTestComponent,
+  ComponentFixture,
   AsyncTestCompleter,
   TestComponentBuilder,
   beforeEach,
@@ -19,7 +18,7 @@ import {
 } from 'angular2/testing_internal';
 
 import {RootRouter} from 'angular2/src/router/router';
-import {Router, ROUTER_DIRECTIVES} from 'angular2/router';
+import {Router, ROUTER_DIRECTIVES, ROUTER_PRIMARY_COMPONENT} from 'angular2/router';
 
 import {SpyLocation} from 'angular2/src/mock/location_mock';
 import {Location} from 'angular2/src/router/location';
@@ -51,12 +50,8 @@ export var TEST_ROUTER_PROVIDERS = [
   RouteRegistry,
   DirectiveResolver,
   provide(Location, {useClass: SpyLocation}),
-  provide(
-      Router,
-      {
-        useFactory: (registry, location) => { return new RootRouter(registry, location, RootCmp);},
-        deps: [RouteRegistry, Location]
-      })
+  provide(ROUTER_PRIMARY_COMPONENT, {useValue: RootCmp}),
+  provide(Router, {useClass: RootRouter})
 ];
 
 export function clickOnElement(anchorEl) {
@@ -82,7 +77,11 @@ export var specs = {};
 export function describeRouter(description: string, fn: Function, exclusive = false): void {
   var specName = descriptionToSpecName(description);
   specNameBuilder.push(specName);
-  describe(description, fn);
+  if (exclusive) {
+    ddescribe(description, fn);
+  } else {
+    describe(description, fn);
+  }
   specNameBuilder.pop();
 }
 

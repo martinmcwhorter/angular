@@ -49,8 +49,10 @@ const kServedPaths = [
   'playground/src/http',
   'playground/src/jsonp',
   'playground/src/key_events',
+  'playground/src/relative_assets',
   'playground/src/routing',
   'playground/src/sourcemap',
+  'playground/src/svg',
   'playground/src/todo',
   'playground/src/upgrade',
   'playground/src/zippy_component',
@@ -74,6 +76,7 @@ module.exports = function makeBrowserTree(options, destinationPath) {
   const modules = options.projects;
   const noTypeChecks = options.noTypeChecks;
   const generateEs6 = options.generateEs6;
+  const sourceMaps = options.sourceMaps;
 
   if (modules.angular2) {
     var angular2Tree = new Funnel('modules/angular2', {
@@ -110,8 +113,20 @@ module.exports = function makeBrowserTree(options, destinationPath) {
                    {include: ['**/**'], exclude: ['e2e_test/**'], destDir: '/playground/'});
   }
 
-  var modulesTree = mergeTrees(
-      [angular2Tree, angular2MaterialTree, benchmarksTree, benchmarksExternalTree, playgroundTree]);
+  if (modules.benchpress) {
+    var benchpressTree =
+        new Funnel('modules/benchpress',
+                   {include: ['**/**'], exclude: ['e2e_test/**'], destDir: '/benchpress/'});
+  }
+
+  var modulesTree = mergeTrees([
+    angular2Tree,
+    angular2MaterialTree,
+    benchmarksTree,
+    benchmarksExternalTree,
+    playgroundTree,
+    benchpressTree
+  ]);
 
   var es6PolyfillTypings =
       new Funnel('modules', {include: ['angular2/typings/es6-*/**'], destDir: '/'});
@@ -147,14 +162,13 @@ module.exports = function makeBrowserTree(options, destinationPath) {
     declaration: false,
     emitDecoratorMetadata: true,
     experimentalDecorators: true,
-    mapRoot: '',  // force sourcemaps to use relative path
     module: 'commonjs',
     moduleResolution: 'classic',
     noEmitOnError: !noTypeChecks,
     rootDir: './',
     rootFilePaths: ['angular2/manual_typings/globals.d.ts'],
-    sourceMap: true,
-    sourceRoot: '.',
+    inlineSourceMap: sourceMaps,
+    inlineSources: sourceMaps,
     target: 'es5'
   });
 
@@ -267,7 +281,7 @@ module.exports = function makeBrowserTree(options, destinationPath) {
   // typescript resolves dependencies automatically
   if (modules.bundle_deps) {
     var nodeModules = new Funnel(
-        'node_modules', {include: ['@reactivex/**/**', 'parse5/**/**', 'css/**/**'], destDir: '/'});
+        'node_modules', {include: ['rxjs/**/**', 'parse5/**/**', 'css/**/**'], destDir: '/'});
   }
 
   if (generateEs6) {
@@ -276,12 +290,11 @@ module.exports = function makeBrowserTree(options, destinationPath) {
       declaration: false,
       emitDecoratorMetadata: true,
       experimentalDecorators: true,
-      mapRoot: '',  // force sourcemaps to use relative path
       noEmitOnError: false,
       rootDir: './',
       rootFilePaths: ['angular2/manual_typings/globals-es6.d.ts'],
-      sourceMap: true,
-      sourceRoot: '.',
+      inlineSourceMap: sourceMaps,
+      inlineSources: sourceMaps,
       target: 'es6'
     });
 

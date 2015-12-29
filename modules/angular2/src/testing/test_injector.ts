@@ -1,4 +1,16 @@
-import {provide, Provider} from 'angular2/src/core/di';
+import {
+  APP_ID,
+  APPLICATION_COMMON_PROVIDERS,
+  AppViewManager,
+  DirectiveResolver,
+  DynamicComponentLoader,
+  Injector,
+  NgZone,
+  Renderer,
+  Provider,
+  ViewResolver,
+  provide
+} from 'angular2/core';
 import {AnimationBuilder} from 'angular2/src/animate/animation_builder';
 import {MockAnimationBuilder} from 'angular2/src/mock/animation_builder_mock';
 
@@ -11,17 +23,12 @@ import {
   defaultKeyValueDiffers,
   ChangeDetectorGenConfig
 } from 'angular2/src/core/change_detection/change_detection';
-import {ExceptionHandler} from 'angular2/src/facade/exceptions';
-import {ViewResolver} from 'angular2/src/core/linker/view_resolver';
-import {DirectiveResolver} from 'angular2/src/core/linker/directive_resolver';
+import {BaseException, ExceptionHandler} from 'angular2/src/facade/exceptions';
 import {PipeResolver} from 'angular2/src/core/linker/pipe_resolver';
-import {DynamicComponentLoader} from 'angular2/src/core/linker/dynamic_component_loader';
 import {XHR} from 'angular2/src/compiler/xhr';
-import {NgZone} from 'angular2/src/core/zone/ng_zone';
 
 import {DOM} from 'angular2/src/platform/dom/dom_adapter';
 
-import {EventManager, EVENT_MANAGER_PLUGINS} from 'angular2/core';
 import {MockDirectiveResolver} from 'angular2/src/mock/directive_resolver_mock';
 import {MockViewResolver} from 'angular2/src/mock/view_resolver_mock';
 import {MockLocationStrategy} from 'angular2/src/mock/mock_location_strategy';
@@ -30,18 +37,17 @@ import {MockNgZone} from 'angular2/src/mock/ng_zone_mock';
 
 import {TestComponentBuilder} from './test_component_builder';
 
-import {Injector} from 'angular2/src/core/di';
 import {
+  EventManager,
+  EVENT_MANAGER_PLUGINS,
   ELEMENT_PROBE_PROVIDERS
-} from 'angular2/src/platform/browser/debug/debug_element_view_listener';
+} from 'angular2/platform/common_dom';
 
 import {ListWrapper} from 'angular2/src/facade/collection';
 import {FunctionWrapper, Type} from 'angular2/src/facade/lang';
 
 import {AppViewPool, APP_VIEW_POOL_CAPACITY} from 'angular2/src/core/linker/view_pool';
-import {AppViewManager} from 'angular2/src/core/linker/view_manager';
 import {AppViewManagerUtils} from 'angular2/src/core/linker/view_manager_utils';
-import {Renderer} from 'angular2/src/core/render/api';
 
 import {DOCUMENT} from 'angular2/src/platform/dom/dom_tokens';
 import {DomRenderer} from 'angular2/src/platform/dom/dom_renderer';
@@ -49,7 +55,6 @@ import {DomSharedStylesHost} from 'angular2/src/platform/dom/shared_styles_host'
 import {SharedStylesHost} from 'angular2/src/platform/dom/shared_styles_host';
 import {DomEventsPlugin} from 'angular2/src/platform/dom/events/dom_events';
 
-import {APP_ID} from 'angular2/src/core/application_tokens';
 import {Serializer} from "angular2/src/web_workers/shared/serializer";
 import {Log} from './utils';
 import {COMPILER_PROVIDERS} from 'angular2/src/compiler/compiler';
@@ -86,7 +91,7 @@ function _getAppBindings() {
   }
 
   return [
-    COMPILER_PROVIDERS,
+    APPLICATION_COMMON_PROVIDERS,
     provide(ChangeDetectorGenConfig, {useValue: new ChangeDetectorGenConfig(true, false, true)}),
     provide(DOCUMENT, {useValue: appDoc}),
     provide(DomRenderer, {useClass: DomRenderer_}),
@@ -119,9 +124,72 @@ function _getAppBindings() {
   ];
 }
 
+function _runtimeCompilerBindings() {
+  return [
+    provide(XHR, {useClass: DOM.getXHR()}),
+    COMPILER_PROVIDERS,
+  ];
+}
+
+export class TestInjector {
+  private _instantiated: boolean = false;
+
+  private _injector: Injector = null;
+
+  private _providers: Array<Type | Provider | any[]> = [];
+
+  reset() {
+    this._injector = null;
+    this._providers = [];
+    this._instantiated = false;
+  }
+
+  addProviders(providers: Array<Type | Provider | any[]>) {
+    if (this._instantiated) {
+      throw new BaseException('Cannot add providers after test injector is instantiated');
+    }
+    this._providers = ListWrapper.concat(this._providers, providers);
+  }
+
+  createInjector() {
+    var rootInjector = Injector.resolveAndCreate(_getRootProviders());
+    this._injector = rootInjector.resolveAndCreateChild(ListWrapper.concat(
+        ListWrapper.concat(_getAppBindings(), _runtimeCompilerBindings()), this._providers));
+    this._instantiated = true;
+    return this._injector;
+  }
+
+  execute(fn: FunctionWithParamTokens): any {
+    if (!this._instantiated) {
+      this.createInjector();
+    }
+    return fn.execute(this._injector);
+  }
+}
+
+var _testInjector: TestInjector = null;
+
+export function getTestInjector() {
+  if (_testInjector == null) {
+    _testInjector = new TestInjector();
+  }
+  return _testInjector;
+}
+
+/**
+ * @deprecated Use TestInjector#createInjector() instead.
+ */
 export function createTestInjector(providers: Array<Type | Provider | any[]>): Injector {
   var rootInjector = Injector.resolveAndCreate(_getRootProviders());
   return rootInjector.resolveAndCreateChild(ListWrapper.concat(_getAppBindings(), providers));
+}
+
+/**
+ * @deprecated Use TestInjector#createInjector() instead.
+ */
+export function createTestInjectorWithRuntimeCompiler(
+    providers: Array<Type | Provider | any[]>): Injector {
+  return createTestInjector(ListWrapper.concat(_runtimeCompilerBindings(), providers));
 }
 
 /**
@@ -135,18 +203,15 @@ export function createTestInjector(providers: Array<Type | Provider | any[]>): I
  *   // ...
  * }));
  *
- * it('...', inject([AClass, AsyncTestCompleter], (object, async) => {
- *   object.doSomething().then(() => {
- *     expect(...);
- *     async.done();
- *   });
+ * it('...', inject([AClass], (object) => {
+ *   object.doSomething();
+ *   expect(...);
  * })
  * ```
  *
  * Notes:
- * - injecting an `AsyncTestCompleter` allow completing async tests - this is the equivalent of
- *   adding a `done` parameter in Jasmine,
- * - inject is currently a function because of some Traceur limitation the syntax should eventually
+ * - inject is currently a function because of some Traceur limitation the syntax should
+ * eventually
  *   becomes `it('...', @Inject (object: AClass, async: AsyncTestCompleter) => { ... });`
  *
  * @param {Array} tokens
@@ -157,6 +222,24 @@ export function inject(tokens: any[], fn: Function): FunctionWithParamTokens {
   return new FunctionWithParamTokens(tokens, fn, false);
 }
 
+/**
+ * Allows injecting dependencies in `beforeEach()` and `it()`. The test must return
+ * a promise which will resolve when all asynchronous activity is complete.
+ *
+ * Example:
+ *
+ * ```
+ * it('...', injectAsync([AClass], (object) => {
+ *   return object.doSomething().then(() => {
+ *     expect(...);
+ *   });
+ * })
+ * ```
+ *
+ * @param {Array} tokens
+ * @param {Function} fn
+ * @return {FunctionWithParamTokens}
+ */
 export function injectAsync(tokens: any[], fn: Function): FunctionWithParamTokens {
   return new FunctionWithParamTokens(tokens, fn, true);
 }

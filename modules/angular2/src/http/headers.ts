@@ -1,4 +1,11 @@
-import {isPresent, isBlank, isJsObject, isType, StringWrapper} from 'angular2/src/facade/lang';
+import {
+  isPresent,
+  isBlank,
+  isJsObject,
+  isType,
+  StringWrapper,
+  Json
+} from 'angular2/src/facade/lang';
 import {BaseException, WrappedException} from 'angular2/src/facade/exceptions';
 import {
   isListLikeIterable,
@@ -55,6 +62,17 @@ export class Headers {
   }
 
   /**
+   * Returns a new Headers instance from the given DOMString of Response Headers
+   */
+  static fromResponseHeaderString(headersString: string): Headers {
+    return headersString.trim()
+        .split('\n')
+        .map(val => val.split(':'))
+        .map(([key, ...parts]) => ([key.trim(), parts.join(':').trim()]))
+        .reduce((headers, [key, value]) => !headers.set(key, value) && headers, new Headers());
+  }
+
+  /**
    * Appends a header to existing list of header values for a given header name.
    */
   append(name: string, value: string): void {
@@ -108,6 +126,11 @@ export class Headers {
    * Returns values of all headers.
    */
   values(): string[][] { return MapWrapper.values(this._headersMap); }
+
+  /**
+   * Returns string of all headers.
+   */
+  toJSON(): string { return Json.stringify(this.values()); }
 
   /**
    * Returns list of header values for a given name.

@@ -31,6 +31,12 @@ export function main() {
 
   function unparse(ast: AST): string { return new Unparser().unparse(ast); }
 
+  function checkInterpolation(exp: string, expected?: string) {
+    var ast = parseInterpolation(exp);
+    if (isBlank(expected)) expected = exp;
+    expect(unparse(ast)).toEqual(expected);
+  }
+
   function checkBinding(exp: string, expected?: string) {
     var ast = parseBinding(exp);
     if (isBlank(expected)) expected = exp;
@@ -230,6 +236,18 @@ export function main() {
           expectBindingError('"Foo"|1234').toThrowError(new RegExp('identifier or keyword'));
           expectBindingError('"Foo"|"uppercase"').toThrowError(new RegExp('identifier or keyword'));
         });
+
+        it('should parse quoted expressions', () => { checkBinding('a:b', 'a:b'); });
+
+        it('should not crash when prefix part is not tokenizable',
+           () => { checkBinding('"a:b"', '"a:b"'); });
+
+        it('should ignore whitespace around quote prefix', () => { checkBinding(' a :b', 'a:b'); });
+
+        it('should refuse prefixes that are not single identifiers', () => {
+          expectBindingError('a + b:c').toThrowError();
+          expectBindingError('1:c').toThrowError();
+        });
       });
 
       it('should store the source in the result',
@@ -250,6 +268,8 @@ export function main() {
         expectBindingError("{{a.b}}")
             .toThrowErrorWith('Got interpolation ({{}}) where expression was expected');
       });
+
+      it('should parse conditional expression', () => { checkBinding('a < b ? a : b'); });
     });
 
     describe('parseTemplateBindings', () => {
@@ -323,7 +343,7 @@ export function main() {
 
       it('should allow multiple pairs', () => {
         var bindings = parseTemplateBindings("a 1 b 2");
-        expect(keys(bindings)).toEqual(['a', 'a-b']);
+        expect(keys(bindings)).toEqual(['a', 'aB']);
         expect(exprSources(bindings)).toEqual(['1 ', '2']);
       });
 
@@ -362,7 +382,7 @@ export function main() {
 
         bindings = parseTemplateBindings("directive: var item in expr; var a = b", 'location');
         expect(keyValues(bindings))
-            .toEqual(['directive', '#item=\$implicit', 'directive-in=expr in location', '#a=b']);
+            .toEqual(['directive', '#item=\$implicit', 'directiveIn=expr in location', '#a=b']);
       });
 
       it('should parse pipes', () => {
@@ -398,6 +418,9 @@ export function main() {
             .toThrowErrorWith(
                 "Parser Error: Blank expressions are not allowed in interpolated strings");
       });
+
+      it('should parse conditional expression',
+         () => { checkInterpolation('{{ a < b ? a : b }}'); });
     });
 
     describe("parseSimpleBinding", () => {
@@ -414,7 +437,7 @@ export function main() {
       it("should throw when the given expression is not just a field name", () => {
         expect(() => parseSimpleBinding("name + 1"))
             .toThrowErrorWith(
-                'Simple binding expression can only contain field access and constants');
+                'Host binding expression can only contain field access and constants');
       });
 
       it('should throw when encountering interpolation', () => {

@@ -1,4 +1,5 @@
 var browserProvidersConf = require('./browser-providers.conf.js');
+var internalAngularReporter = require('./tools/karma/reporter.js');
 
 // Karma configuration
 // Generated on Thu Sep 25 2014 11:52:02 GMT-0700 (PDT)
@@ -24,7 +25,7 @@ module.exports = function(config) {
       // Including systemjs because it defines `__eval`, which produces correct stack traces.
       'modules/angular2/src/testing/shims_for_IE.js',
       'node_modules/systemjs/dist/system.src.js',
-      {pattern: 'node_modules/@reactivex/rxjs/**', included: false, watched: false, served: true},
+      {pattern: 'node_modules/rxjs/**', included: false, watched: false, served: true},
       'node_modules/reflect-metadata/Reflect.js',
       'tools/build/file2modulename.js',
       'test-main.js',
@@ -35,6 +36,21 @@ module.exports = function(config) {
 
     customLaunchers: browserProvidersConf.customLaunchers,
 
+    plugins: [
+      'karma-jasmine',
+      'karma-browserstack-launcher',
+      'karma-sauce-launcher',
+      'karma-chrome-launcher',
+      'karma-sourcemap-loader',
+      'karma-dart',
+      internalAngularReporter
+    ],
+
+    preprocessors: {
+      '**/*.js': ['sourcemap']
+    },
+
+    reporters: ['internal-angular'],
     sauceLabs: {
       testName: 'Angular2',
       startConnect: false,

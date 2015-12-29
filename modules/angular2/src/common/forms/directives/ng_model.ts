@@ -8,7 +8,8 @@ import {
   forwardRef,
   Provider,
   Inject,
-  Optional
+  Optional,
+  Self
 } from 'angular2/core';
 import {ControlValueAccessor, NG_VALUE_ACCESSOR} from './control_value_accessor';
 import {NgControl} from './ng_control';
@@ -30,8 +31,8 @@ const formControlBinding =
  *
  * ### Usage
  *
- * `ng-model` binds an existing domain model to a form control. For a
- * two-way binding, use `[(ng-model)]` to ensure the model updates in
+ * `ngModel` binds an existing domain model to a form control. For a
+ * two-way binding, use `[(ngModel)]` to ensure the model updates in
  * both directions.
  *
  * ### Example ([live demo](http://plnkr.co/edit/R3UX5qDaUqFO2VYR0UzH?p=preview))
@@ -39,7 +40,7 @@ const formControlBinding =
  * @Component({
  *      selector: "search-comp",
  *      directives: [FORM_DIRECTIVES],
- *      template: `<input type='text' [(ng-model)]="searchQuery">`
+ *      template: `<input type='text' [(ngModel)]="searchQuery">`
  *      })
  * class SearchComp {
  *  searchQuery: string;
@@ -47,11 +48,11 @@ const formControlBinding =
  *  ```
  */
 @Directive({
-  selector: '[ng-model]:not([ng-control]):not([ng-form-control])',
+  selector: '[ngModel]:not([ngControl]):not([ngFormControl])',
   bindings: [formControlBinding],
   inputs: ['model: ngModel'],
   outputs: ['update: ngModelChange'],
-  exportAs: 'form'
+  exportAs: 'ngForm'
 })
 export class NgModel extends NgControl implements OnChanges {
   /** @internal */
@@ -62,14 +63,15 @@ export class NgModel extends NgControl implements OnChanges {
   model: any;
   viewModel: any;
 
-  constructor(@Optional() @Inject(NG_VALIDATORS) private _validators: any[],
-              @Optional() @Inject(NG_ASYNC_VALIDATORS) private _asyncValidators: any[],
-              @Optional() @Inject(NG_VALUE_ACCESSOR) valueAccessors: ControlValueAccessor[]) {
+  constructor(@Optional() @Self() @Inject(NG_VALIDATORS) private _validators: any[],
+              @Optional() @Self() @Inject(NG_ASYNC_VALIDATORS) private _asyncValidators: any[],
+              @Optional() @Self() @Inject(NG_VALUE_ACCESSOR)
+              valueAccessors: ControlValueAccessor[]) {
     super();
     this.valueAccessor = selectValueAccessor(this, valueAccessors);
   }
 
-  onChanges(changes: {[key: string]: SimpleChange}) {
+  ngOnChanges(changes: {[key: string]: SimpleChange}) {
     if (!this._added) {
       setUpControl(this._control, this);
       this._control.updateValueAndValidity({emitEvent: false});

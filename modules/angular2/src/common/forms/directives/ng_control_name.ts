@@ -12,7 +12,8 @@ import {
   SkipSelf,
   Provider,
   Inject,
-  Optional
+  Optional,
+  Self
 } from 'angular2/core';
 
 import {ControlContainer} from './control_container';
@@ -48,11 +49,11 @@ const controlNameBinding =
  *      selector: "login-comp",
  *      directives: [FORM_DIRECTIVES],
  *      template: `
- *        <form #f="form" (submit)='onLogIn(f.value)'>
- *          Login <input type='text' ng-control='login' #l="form">
- *          <div *ng-if="!l.valid">Login is invalid</div>
+ *        <form #f="ngForm" (submit)='onLogIn(f.value)'>
+ *          Login <input type='text' ngControl='login' #l="form">
+ *          <div *ngIf="!l.valid">Login is invalid</div>
  *
- *          Password <input type='password' ng-control='password'>
+ *          Password <input type='password' ngControl='password'>
  *          <button type='submit'>Log in!</button>
  *        </form>
  *      `})
@@ -63,7 +64,7 @@ const controlNameBinding =
  * }
  *  ```
  *
- * We can also use ng-model to bind a domain model to the form.
+ * We can also use ngModel to bind a domain model to the form.
  *
  *  ```
  * @Component({
@@ -71,9 +72,9 @@ const controlNameBinding =
  *      directives: [FORM_DIRECTIVES],
  *      template: `
  *        <form (submit)='onLogIn()'>
- *          Login <input type='text' ng-control='login' [(ng-model)]="credentials.login">
- *          Password <input type='password' ng-control='password'
- *                          [(ng-model)]="credentials.password">
+ *          Login <input type='text' ngControl='login' [(ngModel)]="credentials.login">
+ *          Password <input type='password' ngControl='password'
+ *                          [(ngModel)]="credentials.password">
  *          <button type='submit'>Log in!</button>
  *        </form>
  *      `})
@@ -88,11 +89,11 @@ const controlNameBinding =
  *  ```
  */
 @Directive({
-  selector: '[ng-control]',
+  selector: '[ngControl]',
   bindings: [controlNameBinding],
   inputs: ['name: ngControl', 'model: ngModel'],
   outputs: ['update: ngModelChange'],
-  exportAs: 'form'
+  exportAs: 'ngForm'
 })
 export class NgControlName extends NgControl implements OnChanges,
     OnDestroy {
@@ -103,16 +104,17 @@ export class NgControlName extends NgControl implements OnChanges,
   private _added = false;
 
   constructor(@Host() @SkipSelf() private _parent: ControlContainer,
-              @Optional() @Inject(NG_VALIDATORS) private _validators:
+              @Optional() @Self() @Inject(NG_VALIDATORS) private _validators:
                   /* Array<Validator|Function> */ any[],
-              @Optional() @Inject(NG_ASYNC_VALIDATORS) private _asyncValidators:
+              @Optional() @Self() @Inject(NG_ASYNC_VALIDATORS) private _asyncValidators:
                   /* Array<Validator|Function> */ any[],
-              @Optional() @Inject(NG_VALUE_ACCESSOR) valueAccessors: ControlValueAccessor[]) {
+              @Optional() @Self() @Inject(NG_VALUE_ACCESSOR)
+              valueAccessors: ControlValueAccessor[]) {
     super();
     this.valueAccessor = selectValueAccessor(this, valueAccessors);
   }
 
-  onChanges(changes: {[key: string]: SimpleChange}) {
+  ngOnChanges(changes: {[key: string]: SimpleChange}) {
     if (!this._added) {
       this.formDirective.addControl(this);
       this._added = true;
@@ -123,7 +125,7 @@ export class NgControlName extends NgControl implements OnChanges,
     }
   }
 
-  onDestroy(): void { this.formDirective.removeControl(this); }
+  ngOnDestroy(): void { this.formDirective.removeControl(this); }
 
   viewToModelUpdate(newValue: any): void {
     this.viewModel = newValue;

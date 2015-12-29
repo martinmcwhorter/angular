@@ -239,21 +239,25 @@ export class Parse5DomAdapter extends DomAdapter {
       treeAdapter.appendChild(el, content.childNodes[i]);
     }
   }
-  getText(el): string {
+  getText(el, isRecursive?: boolean): string {
     if (this.isTextNode(el)) {
       return el.data;
+    } else if (this.isCommentNode(el)) {
+      // In the DOM, comments within an element return an empty string for textContent
+      // However, comment node instances return the comment content for textContent getter
+      return isRecursive ? '' : el.data;
     } else if (isBlank(el.childNodes) || el.childNodes.length == 0) {
       return "";
     } else {
       var textContent = "";
       for (var i = 0; i < el.childNodes.length; i++) {
-        textContent += this.getText(el.childNodes[i]);
+        textContent += this.getText(el.childNodes[i], true);
       }
       return textContent;
     }
   }
   setText(el, value: string) {
-    if (this.isTextNode(el)) {
+    if (this.isTextNode(el) || this.isCommentNode(el)) {
       el.data = value;
     } else {
       this.clearNodes(el);
@@ -274,7 +278,7 @@ export class Parse5DomAdapter extends DomAdapter {
   createElement(tagName): HTMLElement {
     return treeAdapter.createElement(tagName, 'http://www.w3.org/1999/xhtml', []);
   }
-  createElementNS(ns, tagName): HTMLElement { throw 'not implemented'; }
+  createElementNS(ns, tagName): HTMLElement { return treeAdapter.createElement(tagName, ns, []); }
   createTextNode(text: string): Text {
     var t = <any>this.createComment(text);
     t.type = 'text';
@@ -352,24 +356,28 @@ export class Parse5DomAdapter extends DomAdapter {
     }
     return classAttrValue ? classAttrValue.trim().split(/\s+/g) : [];
   }
-  addClass(element, classname: string) {
+  addClass(element, className: string) {
     var classList = this.classList(element);
-    var index = classList.indexOf(classname);
+    var index = classList.indexOf(className);
     if (index == -1) {
-      classList.push(classname);
+      classList.push(className);
       element.attribs["class"] = element.className = classList.join(" ");
     }
   }
-  removeClass(element, classname: string) {
+  removeClass(element, className: string) {
     var classList = this.classList(element);
-    var index = classList.indexOf(classname);
+    var index = classList.indexOf(className);
     if (index > -1) {
       classList.splice(index, 1);
       element.attribs["class"] = element.className = classList.join(" ");
     }
   }
-  hasClass(element, classname: string): boolean {
-    return ListWrapper.contains(this.classList(element), classname);
+  hasClass(element, className: string): boolean {
+    return ListWrapper.contains(this.classList(element), className);
+  }
+  hasStyle(element, styleName: string, styleValue: string = null): boolean {
+    var value = this.getStyle(element, styleName) || '';
+    return styleValue ? value == styleValue : value.length > 0;
   }
   /** @internal */
   _readStyleAttribute(element) {
@@ -398,15 +406,15 @@ export class Parse5DomAdapter extends DomAdapter {
     }
     element.attribs["style"] = styleAttrValue;
   }
-  setStyle(element, stylename: string, stylevalue: string) {
+  setStyle(element, styleName: string, styleValue: string) {
     var styleMap = this._readStyleAttribute(element);
-    styleMap[stylename] = stylevalue;
+    styleMap[styleName] = styleValue;
     this._writeStyleAttribute(element, styleMap);
   }
-  removeStyle(element, stylename: string) { this.setStyle(element, stylename, null); }
-  getStyle(element, stylename: string): string {
+  removeStyle(element, styleName: string) { this.setStyle(element, styleName, null); }
+  getStyle(element, styleName: string): string {
     var styleMap = this._readStyleAttribute(element);
-    return styleMap.hasOwnProperty(stylename) ? styleMap[stylename] : "";
+    return styleMap.hasOwnProperty(styleName) ? styleMap[styleName] : "";
   }
   tagName(element): string { return element.tagName == "style" ? "STYLE" : element.tagName; }
   attributeMap(element): Map<string, string> {

@@ -8,8 +8,7 @@ import {
   iit,
   inject,
   it,
-  xit,
-  SpyObject
+  xit
 } from 'angular2/testing_internal';
 import {Injector, provide} from 'angular2/core';
 import {MockBackend, MockConnection} from 'angular2/src/http/backends/mock_backend';
@@ -17,7 +16,7 @@ import {
   BaseRequestOptions,
   ConnectionBackend,
   Request,
-  RequestMethods,
+  RequestMethod,
   RequestOptions,
   Response,
   ResponseOptions,
@@ -29,19 +28,8 @@ import {
   Http,
   Jsonp
 } from 'angular2/http';
-import {Observable, Subject} from '@reactivex/rxjs/dist/cjs/Rx';
-
-class SpyObserver extends SpyObject {
-  onNext: Function;
-  onError: Function;
-  onCompleted: Function;
-  constructor() {
-    super();
-    this.onNext = this.spy('onNext');
-    this.onError = this.spy('onError');
-    this.onCompleted = this.spy('onCompleted');
-  }
-}
+import {Observable} from 'rxjs/Observable';
+import {Subject} from 'rxjs/Subject';
 
 export function main() {
   describe('injectables', () => {
@@ -151,11 +139,52 @@ export function main() {
                  .subscribe((res) => {});
            }));
 
+        it('should accept a fully-qualified request as its only parameter',
+           inject([AsyncTestCompleter], (async) => {
+             backend.connections.subscribe(c => {
+               expect(c.request.url).toBe('https://google.com');
+               expect(c.request.method).toBe(RequestMethod.Post);
+               c.mockRespond(new Response(new ResponseOptions({body: 'Thank you'})));
+               async.done();
+             });
+             http.request(new Request(new RequestOptions(
+                              {url: 'https://google.com', method: RequestMethod.Post})))
+                 .subscribe((res) => {});
+           }));
+
 
         it('should perform a get request for given url if only passed a string',
            inject([AsyncTestCompleter], (async) => {
              backend.connections.subscribe(c => c.mockRespond(baseResponse));
              http.request('http://basic.connection')
+                 .subscribe(res => {
+                   expect(res.text()).toBe('base response');
+                   async.done();
+                 });
+           }));
+
+        it('should perform a post request for given url if options include a method',
+           inject([AsyncTestCompleter], (async) => {
+             backend.connections.subscribe(c => {
+               expect(c.request.method).toEqual(RequestMethod.Post);
+               c.mockRespond(baseResponse);
+             });
+             let requestOptions = new RequestOptions({method: RequestMethod.Post});
+             http.request('http://basic.connection', requestOptions)
+                 .subscribe(res => {
+                   expect(res.text()).toBe('base response');
+                   async.done();
+                 });
+           }));
+
+        it('should perform a post request for given url if options include a method',
+           inject([AsyncTestCompleter], (async) => {
+             backend.connections.subscribe(c => {
+               expect(c.request.method).toEqual(RequestMethod.Post);
+               c.mockRespond(baseResponse);
+             });
+             let requestOptions = {method: RequestMethod.Post};
+             http.request('http://basic.connection', requestOptions)
                  .subscribe(res => {
                    expect(res.text()).toBe('base response');
                    async.done();
@@ -180,18 +209,6 @@ export function main() {
                  .subscribe(res => { expect(res.text()).toBe('base response'); }, null,
                             () => { async.done(); });
            }));
-        // TODO: make dart not complain about "argument type 'Map' cannot be assigned to the
-        // parameter type 'IRequestOptions'"
-        // xit('should perform a get request for given url if passed a dictionary',
-        //     inject([AsyncTestCompleter], async => {
-        //       ObservableWrapper.subscribe(backend.connections, c => c.mockRespond(baseResponse));
-        //       ObservableWrapper.subscribe(http.request(url, {method: RequestMethods.GET}), res =>
-        //       {
-        //         expect(res.text()).toBe('base response');
-        //         async.done();
-        //       });
-        //     }));
-
 
         it('should throw if url is not a string or Request', () => {
           var req = <Request>{};
@@ -204,7 +221,7 @@ export function main() {
       describe('.get()', () => {
         it('should perform a get request for given url', inject([AsyncTestCompleter], async => {
              backend.connections.subscribe(c => {
-               expect(c.request.method).toBe(RequestMethods.Get);
+               expect(c.request.method).toBe(RequestMethod.Get);
                backend.resolveAllConnections();
                async.done();
              });
@@ -216,7 +233,7 @@ export function main() {
       describe('.post()', () => {
         it('should perform a post request for given url', inject([AsyncTestCompleter], async => {
              backend.connections.subscribe(c => {
-               expect(c.request.method).toBe(RequestMethods.Post);
+               expect(c.request.method).toBe(RequestMethod.Post);
                backend.resolveAllConnections();
                async.done();
              });
@@ -239,7 +256,7 @@ export function main() {
       describe('.put()', () => {
         it('should perform a put request for given url', inject([AsyncTestCompleter], async => {
              backend.connections.subscribe(c => {
-               expect(c.request.method).toBe(RequestMethods.Put);
+               expect(c.request.method).toBe(RequestMethod.Put);
                backend.resolveAllConnections();
                async.done();
              });
@@ -261,7 +278,7 @@ export function main() {
       describe('.delete()', () => {
         it('should perform a delete request for given url', inject([AsyncTestCompleter], async => {
              backend.connections.subscribe(c => {
-               expect(c.request.method).toBe(RequestMethods.Delete);
+               expect(c.request.method).toBe(RequestMethod.Delete);
                backend.resolveAllConnections();
                async.done();
              });
@@ -273,7 +290,7 @@ export function main() {
       describe('.patch()', () => {
         it('should perform a patch request for given url', inject([AsyncTestCompleter], async => {
              backend.connections.subscribe(c => {
-               expect(c.request.method).toBe(RequestMethods.Patch);
+               expect(c.request.method).toBe(RequestMethod.Patch);
                backend.resolveAllConnections();
                async.done();
              });
@@ -295,7 +312,7 @@ export function main() {
       describe('.head()', () => {
         it('should perform a head request for given url', inject([AsyncTestCompleter], async => {
              backend.connections.subscribe(c => {
-               expect(c.request.method).toBe(RequestMethods.Head);
+               expect(c.request.method).toBe(RequestMethod.Head);
                backend.resolveAllConnections();
                async.done();
              });
@@ -346,7 +363,7 @@ export function main() {
           inject([AsyncTestCompleter], (async) => {
             backend.connections.subscribe(c => {
               expect(c.request.method)
-                  .toBe(RequestMethods.Post)
+                  .toBe(RequestMethod.Post)
                       c.mockRespond(new Response(new ResponseOptions({body: 'Thank you'})));
               async.done();
             });

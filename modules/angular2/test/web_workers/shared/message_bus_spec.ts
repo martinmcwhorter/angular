@@ -5,8 +5,7 @@ import {
   it,
   expect,
   beforeEach,
-  createTestInjector,
-  beforeEachBindings,
+  beforeEachProviders,
   SpyObject,
   proxy
 } from 'angular2/testing_internal';
@@ -147,6 +146,6 @@ export function main() {
            expect(wasCalled).toBeTruthy();
            async.done();
          });
-       }), 500);
+       }), 10000);
   });
 }

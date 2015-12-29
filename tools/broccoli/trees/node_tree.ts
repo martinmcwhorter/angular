@@ -25,8 +25,19 @@ module.exports = function makeNodeTree(projects, destinationPath) {
       'angular2/test/testing/fake_async_spec.ts',
       'angular2/test/testing/testing_public_spec.ts',
       'angular2/test/platform/xhr_impl_spec.ts',
+      'angular2/test/platform/browser/**/*.ts',
       'angular2/test/common/forms/**',
-      'angular2/test/tools/tools_spec.ts',
+
+      // we call browser's bootstrap
+      'angular2/test/router/route_config_spec.ts',
+      'angular2/test/router/integration/bootstrap_spec.ts',
+
+      // we check the public api by importing angular2/angular2
+      'angular2/test/symbol_inspector/**/*.ts',
+      'angular2/test/public_api_spec.ts',
+
+      'angular2/test/upgrade/**/*.ts',
+
       'angular1_router/**',
       'angular2/examples/**/!(*_spec.ts)',
     ]
@@ -37,15 +48,14 @@ module.exports = function makeNodeTree(projects, destinationPath) {
     experimentalDecorators: true,
     declaration: true,
     stripInternal: true,
-    mapRoot: '', /* force sourcemaps to use relative path */
     module: 'commonjs',
     moduleResolution: 'classic',
     noEmitOnError: true,
     rootDir: '.',
     rootFilePaths:
         ['angular2/manual_typings/globals.d.ts', 'angular2/typings/es6-shim/es6-shim.d.ts'],
-    sourceMap: true,
-    sourceRoot: '.',
+    inlineSourceMap: true,
+    inlineSources: true,
     target: 'es5'
   });
 
@@ -114,7 +124,7 @@ module.exports = function makeNodeTree(projects, destinationPath) {
   // because of the duplicate definitions.
   // TODO(alexeagle): remove this when typescript releases a fix
   nodeTree = replace(nodeTree, {
-    files: ['angular2/angular2.d.ts'],
+    files: ['angular2/core.d.ts'],
     patterns: [{match: /$/, replacement: 'import "./manual_typings/globals-es6.d.ts";\r\n'}]
   });
 

@@ -17,6 +17,7 @@ var global_excludes = [
   'angular2/http*',
   'angular2/upgrade*',
   'angular2/examples/**/ts/**/*',
+  'angular2/http/**/*',
   'angular2/src/http/**/*',
   'angular2/test/http/**/*',
   'angular2/src/upgrade/**/*',
@@ -67,8 +68,8 @@ function getSourceTree() {
     translateBuiltins: true,
   });
   // Native sources, dart only examples, etc.
-  var dartSrcs =
-      modulesFunnel(['**/*.dart', '**/*.ng_meta.json', '**/*.aliases.json', '**/css/**']);
+  var dartSrcs = modulesFunnel(
+      ['**/*.dart', '**/*.ng_meta.json', '**/*.aliases.json', '**/css/**', '**/*.css']);
   return mergeTrees([transpiled, dartSrcs]);
 }
 

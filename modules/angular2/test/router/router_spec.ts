@@ -8,7 +8,7 @@ import {
   expect,
   inject,
   beforeEach,
-  beforeEachBindings
+  beforeEachProviders
 } from 'angular2/testing_internal';
 import {SpyRouterOutlet} from './spies';
 import {Type} from 'angular2/src/facade/lang';
@@ -19,8 +19,8 @@ import {Router, RootRouter} from 'angular2/src/router/router';
 import {SpyLocation} from 'angular2/src/mock/location_mock';
 import {Location} from 'angular2/src/router/location';
 
-import {RouteRegistry} from 'angular2/src/router/route_registry';
-import {RouteConfig, AsyncRoute, Route} from 'angular2/src/router/route_config_decorator';
+import {RouteRegistry, ROUTER_PRIMARY_COMPONENT} from 'angular2/src/router/route_registry';
+import {RouteConfig, AsyncRoute, Route, Redirect} from 'angular2/src/router/route_config_decorator';
 import {DirectiveResolver} from 'angular2/src/core/linker/directive_resolver';
 
 import {provide} from 'angular2/core';
@@ -29,16 +29,12 @@ export function main() {
   describe('Router', () => {
     var router, location;
 
-    beforeEachBindings(() => [
+    beforeEachProviders(() => [
       RouteRegistry,
       DirectiveResolver,
       provide(Location, {useClass: SpyLocation}),
-      provide(Router,
-              {
-                useFactory:
-                    (registry, location) => { return new RootRouter(registry, location, AppCmp); },
-                deps: [RouteRegistry, Location]
-              })
+      provide(ROUTER_PRIMARY_COMPONENT, {useValue: AppCmp}),
+      provide(Router, {useClass: RootRouter})
     ]);
 
 
@@ -100,6 +96,42 @@ export function main() {
                expect(outlet.spy('activate')).toHaveBeenCalled();
                expect(location.urlChanges).toEqual([]);
                async.done();
+             });
+       }));
+
+    // See https://github.com/angular/angular/issues/5590
+    it('should replace history when triggered by a hashchange with a redirect',
+       inject([AsyncTestCompleter], (async) => {
+         var outlet = makeDummyOutlet();
+
+         router.registerPrimaryOutlet(outlet)
+             .then((_) => router.config([
+               new Redirect({path: '/a', redirectTo: ['B']}),
+               new Route({path: '/b', component: DummyComponent, name: 'B'})
+             ]))
+             .then((_) => {
+               router.subscribe((_) => {
+                 expect(location.urlChanges).toEqual(['hash: a', 'replace: /b']);
+                 async.done();
+               });
+
+               location.simulateHashChange('a');
+             });
+       }));
+
+    it('should push history when triggered by a hashchange without a redirect',
+       inject([AsyncTestCompleter], (async) => {
+         var outlet = makeDummyOutlet();
+
+         router.registerPrimaryOutlet(outlet)
+             .then((_) => router.config([new Route({path: '/a', component: DummyComponent})]))
+             .then((_) => {
+               router.subscribe((_) => {
+                 expect(location.urlChanges).toEqual(['hash: a']);
+                 async.done();
+               });
+
+               location.simulateHashChange('a');
              });
        }));
 
@@ -242,8 +274,8 @@ class DummyParentComp {
 function makeDummyOutlet() {
   var ref = new SpyRouterOutlet();
   ref.spy('canActivate').andCallFake((_) => PromiseWrapper.resolve(true));
-  ref.spy('canReuse').andCallFake((_) => PromiseWrapper.resolve(false));
-  ref.spy('canDeactivate').andCallFake((_) => PromiseWrapper.resolve(true));
+  ref.spy('routerCanReuse').andCallFake((_) => PromiseWrapper.resolve(false));
+  ref.spy('routerCanDeactivate').andCallFake((_) => PromiseWrapper.resolve(true));
   ref.spy('activate').andCallFake((_) => PromiseWrapper.resolve(true));
   return ref;
 }

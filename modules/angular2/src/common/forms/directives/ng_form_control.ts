@@ -9,7 +9,8 @@ import {
   forwardRef,
   Provider,
   Inject,
-  Optional
+  Optional,
+  Self
 } from 'angular2/core';
 import {NgControl} from './ng_control';
 import {Control} from '../model';
@@ -43,7 +44,7 @@ const formControlBinding =
  *       <h2>NgFormControl Example</h2>
  *       <form>
  *         <p>Element with existing control: <input type="text"
- * [ng-form-control]="loginControl"></p>
+ * [ngFormControl]="loginControl"></p>
  *         <p>Value of existing control: {{loginControl.value}}</p>
  *       </form>
  *     </div>
@@ -55,9 +56,9 @@ const formControlBinding =
  * }
  *  ```
  *
- * ###ng-model
+ * ###ngModel
  *
- * We can also use `ng-model` to bind a domain model to the form.
+ * We can also use `ngModel` to bind a domain model to the form.
  *
  * ### Example ([live demo](http://plnkr.co/edit/yHMLuHO7DNgT8XvtjTDH?p=preview))
  *
@@ -65,7 +66,7 @@ const formControlBinding =
  * @Component({
  *      selector: "login-comp",
  *      directives: [FORM_DIRECTIVES],
- *      template: "<input type='text' [ng-form-control]='loginControl' [(ng-model)]='login'>"
+ *      template: "<input type='text' [ngFormControl]='loginControl' [(ngModel)]='login'>"
  *      })
  * class LoginComp {
  *  loginControl: Control = new Control('');
@@ -74,11 +75,11 @@ const formControlBinding =
  *  ```
  */
 @Directive({
-  selector: '[ng-form-control]',
+  selector: '[ngFormControl]',
   bindings: [formControlBinding],
   inputs: ['form: ngFormControl', 'model: ngModel'],
   outputs: ['update: ngModelChange'],
-  exportAs: 'form'
+  exportAs: 'ngForm'
 })
 export class NgFormControl extends NgControl implements OnChanges {
   form: Control;
@@ -86,16 +87,17 @@ export class NgFormControl extends NgControl implements OnChanges {
   model: any;
   viewModel: any;
 
-  constructor(@Optional() @Inject(NG_VALIDATORS) private _validators:
+  constructor(@Optional() @Self() @Inject(NG_VALIDATORS) private _validators:
                   /* Array<Validator|Function> */ any[],
-              @Optional() @Inject(NG_ASYNC_VALIDATORS) private _asyncValidators:
+              @Optional() @Self() @Inject(NG_ASYNC_VALIDATORS) private _asyncValidators:
                   /* Array<Validator|Function> */ any[],
-              @Optional() @Inject(NG_VALUE_ACCESSOR) valueAccessors: ControlValueAccessor[]) {
+              @Optional() @Self() @Inject(NG_VALUE_ACCESSOR)
+              valueAccessors: ControlValueAccessor[]) {
     super();
     this.valueAccessor = selectValueAccessor(this, valueAccessors);
   }
 
-  onChanges(changes: {[key: string]: SimpleChange}): void {
+  ngOnChanges(changes: {[key: string]: SimpleChange}): void {
     if (this._isControlChanged(changes)) {
       setUpControl(this.form, this);
       this.form.updateValueAndValidity({emitEvent: false});

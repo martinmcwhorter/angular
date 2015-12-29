@@ -1,9 +1,9 @@
 import {CONST_EXPR} from 'angular2/src/facade/lang';
-import {OpaqueToken} from 'angular2/angular2';
+import {OpaqueToken} from 'angular2/core';
 
 /**
  * `LocationStrategy` is responsible for representing and reading route state
- * from the the browser's URL. Angular provides two strategies:
+ * from the browser's URL. Angular provides two strategies:
  * {@link HashLocationStrategy} (default) and {@link PathLocationStrategy}.
  *
  * This is used under the hood of the {@link Location} service.
@@ -21,6 +21,7 @@ export abstract class LocationStrategy {
   abstract path(): string;
   abstract prepareExternalUrl(internal: string): string;
   abstract pushState(state: any, title: string, url: string, queryParams: string): void;
+  abstract replaceState(state: any, title: string, url: string, queryParams: string): void;
   abstract forward(): void;
   abstract back(): void;
   abstract onPopState(fn: (_: any) => any): void;
@@ -39,7 +40,7 @@ export abstract class LocationStrategy {
  * ### Example
  *
  * ```
- * import {Component} from 'angular2/angular2';
+ * import {Component} from 'angular2/core';
  * import {ROUTER_DIRECTIVES, ROUTER_PROVIDERS, RouteConfig} from 'angular2/router';
  *
  * @Component({directives: [ROUTER_DIRECTIVES]})
@@ -61,4 +62,27 @@ export const APP_BASE_HREF: OpaqueToken = CONST_EXPR(new OpaqueToken('appBaseHre
 
 export function normalizeQueryParams(params: string): string {
   return (params.length > 0 && params.substring(0, 1) != '?') ? ('?' + params) : params;
+}
+
+export function joinWithSlash(start: string, end: string): string {
+  if (start.length == 0) {
+    return end;
+  }
+  if (end.length == 0) {
+    return start;
+  }
+  var slashes = 0;
+  if (start.endsWith('/')) {
+    slashes++;
+  }
+  if (end.startsWith('/')) {
+    slashes++;
+  }
+  if (slashes == 2) {
+    return start + end.substring(1);
+  }
+  if (slashes == 1) {
+    return start + end;
+  }
+  return start + '/' + end;
 }
